@@ -564,7 +564,7 @@ components:
           format: password
     LoginResponse:
       type: object
-      required: [accessToken, refreshToken, expiresIn, user]
+      required: [accessToken, refreshToken, user]
       properties:
         accessToken:
           type: string
@@ -572,9 +572,6 @@ components:
         refreshToken:
           type: string
           description: Long-lived refresh token used to obtain new access tokens.
-        expiresIn:
-          type: integer
-          description: Expiration time in seconds for the access token.
         user:
           $ref: '#/components/schemas/UserSummary'
     RefreshRequest:
@@ -585,15 +582,17 @@ components:
           type: string
     RefreshResponse:
       type: object
-      required: [accessToken, expiresIn]
+      required: [accessToken, refreshToken, user]
       properties:
         accessToken:
           type: string
-        expiresIn:
-          type: integer
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserSummary'
     UserSummary:
       type: object
-      required: [id, email, roles]
+      required: [id, email, role]
       properties:
         id:
           type: string
@@ -601,15 +600,11 @@ components:
         email:
           type: string
           format: email
-        roles:
-          type: array
-          items:
-            type: string
-        displayName:
+        role:
           type: string
     LayoutStatus:
       type: string
-      enum: [draft, published, archived]
+      enum: [DRAFT, PUBLISHED, ARCHIVED]
     ElementConfig:
       type: object
       description: Configuration for a single layout element as used by the frontend editor.
@@ -650,7 +645,18 @@ components:
           minimum: 0
         metadata:
           type: object
-          additionalProperties: true
+          required: [totalTables, availableTables, availableSeats, venueWaitlist, userWaitlistCount]
+          properties:
+            totalTables:
+              type: integer
+            availableTables:
+              type: integer
+            availableSeats:
+              type: integer
+            venueWaitlist:
+              type: integer
+            userWaitlistCount:
+              type: integer
           description: Element specific configuration payload.
     LayoutBase:
       type: object
@@ -839,7 +845,18 @@ components:
             $ref: '#/components/schemas/TablePricing'
         metadata:
           type: object
-          additionalProperties: true
+          required: [totalTables, availableTables, availableSeats, venueWaitlist, userWaitlistCount]
+          properties:
+            totalTables:
+              type: integer
+            availableTables:
+              type: integer
+            availableSeats:
+              type: integer
+            venueWaitlist:
+              type: integer
+            userWaitlistCount:
+              type: integer
     TablePricing:
       type: object
       required: [elementId, currency, amount]
