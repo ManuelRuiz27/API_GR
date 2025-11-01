@@ -1,0 +1,1163 @@
+openapi: 3.1.0
+info:
+  title: GR Events Platform API
+  description: |
+    API specification for the GR Events Platform covering authentication, layout management,
+    seat selection, reservations, payments, references, event streaming, and audit logging.
+    Schemas are aligned with the frontend types such as `ElementConfig` and
+    `TableMapResponse` used by the seat selection experience.
+  version: 1.0.0
+servers:
+  - url: https://api.gr-events.local
+    description: Local development server
+  - url: https://api.gr-events.com
+    description: Production server
+security:
+  - BearerAuth: []
+tags:
+  - name: Authentication
+  - name: Layouts
+  - name: Icons
+  - name: Table Map
+  - name: Reservations
+  - name: Payments
+  - name: References
+  - name: Events
+  - name: Audit Logs
+paths:
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate a user with email and password.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                value:
+                  email: admin@gr-events.com
+                  password: super-secret
+      responses:
+        '200':
+          description: User authenticated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials.
+  /api/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh an access token using a refresh token.
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Access token refreshed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Invalid refresh token.
+  /api/layouts:
+    post:
+      tags: [Layouts]
+      summary: Create a new seating layout.
+      operationId: createLayout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLayoutRequest'
+      responses:
+        '201':
+          description: Layout created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutDetailResponse'
+    get:
+      tags: [Layouts]
+      summary: List seating layouts with pagination and filtering options.
+      operationId: listLayouts
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/LayoutStatusParam'
+      responses:
+        '200':
+          description: Collection of layouts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutListResponse'
+  /api/layouts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/LayoutIdParam'
+    get:
+      tags: [Layouts]
+      summary: Retrieve a layout by identifier.
+      operationId: getLayout
+      responses:
+        '200':
+          description: Layout detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutDetailResponse'
+        '404':
+          description: Layout not found.
+    put:
+      tags: [Layouts]
+      summary: Update an existing layout.
+      operationId: updateLayout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLayoutRequest'
+      responses:
+        '200':
+          description: Layout updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutDetailResponse'
+    delete:
+      tags: [Layouts]
+      summary: Delete a layout.
+      operationId: deleteLayout
+      responses:
+        '204':
+          description: Layout deleted successfully.
+  /api/layouts/{id}/publish:
+    post:
+      tags: [Layouts]
+      summary: Publish a layout so it becomes selectable for events.
+      operationId: publishLayout
+      parameters:
+        - $ref: '#/components/parameters/LayoutIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishLayoutRequest'
+            examples:
+              default:
+                value:
+                  eventId: 73e9ff46-4f53-4aa0-9d4d-7ec1c0bf38fa
+                  publishAt: '2024-06-01T15:00:00Z'
+      responses:
+        '202':
+          description: Layout publish request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutPublishResponse'
+  /api/icons:
+    get:
+      tags: [Icons]
+      summary: List available map icons.
+      operationId: listIcons
+      responses:
+        '200':
+          description: Icons retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IconListResponse'
+    post:
+      tags: [Icons]
+      summary: Upload a custom icon for layouts.
+      operationId: createIcon
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateIconRequest'
+      responses:
+        '201':
+          description: Icon created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IconResponse'
+  /api/table-map:
+    get:
+      tags: [Table Map]
+      summary: Retrieve the table map for the current event session.
+      operationId: getTableMap
+      parameters:
+        - in: query
+          name: eventId
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: Identifier of the event.
+        - in: query
+          name: channel
+          schema:
+            type: string
+          description: Sales channel requesting the map (web, kiosk, concierge, etc.).
+      responses:
+        '200':
+          description: Map retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableMapResponse'
+  /api/reservations/hold:
+    post:
+      tags: [Reservations]
+      summary: Hold one or more seats for a short period.
+      operationId: holdReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationHoldRequest'
+      responses:
+        '201':
+          description: Seats placed on hold.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationHoldResponse'
+        '409':
+          description: Seats unavailable.
+  /api/reservations:
+    post:
+      tags: [Reservations]
+      summary: Confirm a reservation using a valid hold token.
+      operationId: createReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+      responses:
+        '201':
+          description: Reservation confirmed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+  /api/reservations/{id}:
+    delete:
+      tags: [Reservations]
+      summary: Cancel an existing reservation.
+      operationId: cancelReservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationIdParam'
+      responses:
+        '204':
+          description: Reservation cancelled successfully.
+  /api/waitlist:
+    post:
+      tags: [Reservations]
+      summary: Join the waitlist for a table.
+      operationId: addToWaitlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitlistRequest'
+      responses:
+        '201':
+          description: Added to waitlist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistResponse'
+  /api/waitlist/{tableId}:
+    delete:
+      tags: [Reservations]
+      summary: Remove a waitlist entry by table identifier.
+      operationId: removeWaitlistEntry
+      parameters:
+        - $ref: '#/components/parameters/TableIdParam'
+      responses:
+        '204':
+          description: Waitlist entry removed successfully.
+  /api/payments/mercado-pago/preferences:
+    post:
+      tags: [Payments]
+      summary: Create a Mercado Pago checkout preference.
+      operationId: createMercadoPagoPreference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MercadoPagoPreferenceRequest'
+      responses:
+        '201':
+          description: Preference created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MercadoPagoPreferenceResponse'
+  /api/payments/mercado-pago/webhook:
+    post:
+      tags: [Payments]
+      summary: Receive Mercado Pago webhook events.
+      operationId: handleMercadoPagoWebhook
+      security:
+        - WebhookSignatureAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MercadoPagoWebhookEvent'
+      responses:
+        '202':
+          description: Webhook accepted for processing.
+  /api/payments/codi/charges:
+    post:
+      tags: [Payments]
+      summary: Generate a CoDi charge.
+      operationId: createCodiCharge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodiChargeRequest'
+      responses:
+        '201':
+          description: Charge created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodiChargeResponse'
+  /api/payments/codi/webhook:
+    post:
+      tags: [Payments]
+      summary: Receive CoDi payment notifications.
+      operationId: handleCodiWebhook
+      security:
+        - WebhookSignatureAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodiWebhookEvent'
+      responses:
+        '202':
+          description: Webhook accepted.
+  /api/payments/spei/transfers:
+    post:
+      tags: [Payments]
+      summary: Create a SPEI transfer intent.
+      operationId: createSpeiTransfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeiTransferRequest'
+      responses:
+        '201':
+          description: Transfer intent created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeiTransferResponse'
+  /api/payments/spei/webhook:
+    post:
+      tags: [Payments]
+      summary: Handle SPEI transfer status callbacks.
+      operationId: handleSpeiWebhook
+      security:
+        - WebhookSignatureAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeiWebhookEvent'
+      responses:
+        '202':
+          description: Webhook accepted.
+  /api/references:
+    get:
+      tags: [References]
+      summary: Retrieve cached references (venues, performers, table categories, etc.).
+      operationId: listReferences
+      parameters:
+        - in: query
+          name: version
+          schema:
+            type: string
+          description: Optional version hash to support client-side caching.
+      responses:
+        '200':
+          description: Reference datasets returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferenceBundle'
+  /api/references/{id}/reconcile:
+    post:
+      tags: [References]
+      summary: Trigger a reconciliation of an external reference.
+      operationId: reconcileReference
+      parameters:
+        - $ref: '#/components/parameters/ReferenceIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconcileReferenceRequest'
+      responses:
+        '202':
+          description: Reconciliation started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconcileReferenceResponse'
+  /api/events/stream:
+    get:
+      tags: [Events]
+      summary: Subscribe to server-sent events for real-time updates.
+      operationId: streamEvents
+      responses:
+        '200':
+          description: Event stream.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                heartbeat:
+                  value: |
+                    event: heartbeat
+                    data: {"timestamp":"2024-06-01T15:04:05Z"}
+  /api/audit-logs:
+    get:
+      tags: [Audit Logs]
+      summary: Fetch audit trail entries filtered by actor, resource, or action.
+      operationId: listAuditLogs
+      parameters:
+        - in: query
+          name: actorId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: resourceType
+          schema:
+            type: string
+        - in: query
+          name: since
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: until
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit log entries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogListResponse'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    WebhookSignatureAuth:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: HMAC signature used to validate webhook payload integrity.
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 25
+    LayoutStatusParam:
+      name: status
+      in: query
+      schema:
+        $ref: '#/components/schemas/LayoutStatus'
+    LayoutIdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReservationIdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TableIdParam:
+      name: tableId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReferenceIdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    LoginResponse:
+      type: object
+      required: [accessToken, refreshToken, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+          description: Short-lived JWT access token.
+        refreshToken:
+          type: string
+          description: Long-lived refresh token used to obtain new access tokens.
+        expiresIn:
+          type: integer
+          description: Expiration time in seconds for the access token.
+        user:
+          $ref: '#/components/schemas/UserSummary'
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+    RefreshResponse:
+      type: object
+      required: [accessToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        expiresIn:
+          type: integer
+    UserSummary:
+      type: object
+      required: [id, email, roles]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+        displayName:
+          type: string
+    LayoutStatus:
+      type: string
+      enum: [draft, published, archived]
+    ElementConfig:
+      type: object
+      description: Configuration for a single layout element as used by the frontend editor.
+      required: [id, type, position, size]
+      properties:
+        id:
+          type: string
+          description: Unique identifier assigned client-side.
+        type:
+          type: string
+          description: Element type such as table, stage, zone, or decoration.
+        label:
+          type: string
+        iconId:
+          type: string
+          format: uuid
+        position:
+          type: object
+          required: [x, y]
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+        size:
+          type: object
+          required: [width, height]
+          properties:
+            width:
+              type: number
+            height:
+              type: number
+        rotation:
+          type: number
+          description: Rotation in degrees.
+        capacity:
+          type: integer
+          minimum: 0
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Element specific configuration payload.
+    LayoutBase:
+      type: object
+      required: [name, venueId, elements]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        venueId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/LayoutStatus'
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/ElementConfig'
+        tags:
+          type: array
+          items:
+            type: string
+    CreateLayoutRequest:
+      allOf:
+        - $ref: '#/components/schemas/LayoutBase'
+        - type: object
+          properties:
+            basedOnLayoutId:
+              type: string
+              format: uuid
+    UpdateLayoutRequest:
+      allOf:
+        - $ref: '#/components/schemas/LayoutBase'
+    LayoutDetail:
+      allOf:
+        - $ref: '#/components/schemas/LayoutBase'
+        - type: object
+          required: [id, createdAt, updatedAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+            publishedAt:
+              type: string
+              format: date-time
+              nullable: true
+    LayoutDetailResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/LayoutDetail'
+    LayoutListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LayoutDetail'
+        meta:
+          type: object
+          required: [page, pageSize, total]
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            total:
+              type: integer
+    PublishLayoutRequest:
+      type: object
+      required: [eventId]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        publishAt:
+          type: string
+          format: date-time
+          description: Optional future datetime when the layout becomes active.
+    LayoutPublishResponse:
+      type: object
+      required: [layoutId, status, effectiveAt]
+      properties:
+        layoutId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        effectiveAt:
+          type: string
+          format: date-time
+    Icon:
+      type: object
+      required: [id, name, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        tags:
+          type: array
+          items:
+            type: string
+    CreateIconRequest:
+      type: object
+      required: [name, file]
+      properties:
+        name:
+          type: string
+        file:
+          type: string
+          format: binary
+        tags:
+          type: array
+          items:
+            type: string
+    IconResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Icon'
+    IconListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Icon'
+    AvailabilityStatus:
+      type: string
+      enum: [available, held, reserved, blocked]
+    TableAvailability:
+      type: object
+      required: [elementId, status]
+      properties:
+        elementId:
+          type: string
+        status:
+          $ref: '#/components/schemas/AvailabilityStatus'
+        holdExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        reservationId:
+          type: string
+          format: uuid
+          nullable: true
+    TableMapResponse:
+      type: object
+      description: Aggregate payload consumed by the seat selection page.
+      required: [layoutId, eventId, elements, availability]
+      properties:
+        layoutId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/ElementConfig'
+        availability:
+          type: array
+          items:
+            $ref: '#/components/schemas/TableAvailability'
+        pricing:
+          type: array
+          items:
+            $ref: '#/components/schemas/TablePricing'
+        metadata:
+          type: object
+          additionalProperties: true
+    TablePricing:
+      type: object
+      required: [elementId, currency, amount]
+      properties:
+        elementId:
+          type: string
+        currency:
+          type: string
+        amount:
+          type: number
+          format: float
+        fees:
+          type: number
+          format: float
+    CustomerInfo:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        notes:
+          type: string
+    ReservationHoldRequest:
+      type: object
+      required: [eventId, tables, customer]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        tables:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [tableId, seats]
+            properties:
+              tableId:
+                type: string
+                format: uuid
+              seats:
+                type: integer
+                minimum: 1
+        customer:
+          $ref: '#/components/schemas/CustomerInfo'
+        expiresInSeconds:
+          type: integer
+          minimum: 30
+          maximum: 900
+    ReservationHoldResponse:
+      type: object
+      required: [holdId, expiresAt, tables]
+      properties:
+        holdId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+        tables:
+          type: array
+          items:
+            type: object
+            required: [tableId, seats]
+            properties:
+              tableId:
+                type: string
+                format: uuid
+              seats:
+                type: integer
+    ReservationRequest:
+      type: object
+      required: [holdId, payment]
+      properties:
+        holdId:
+          type: string
+          format: uuid
+        payment:
+          $ref: '#/components/schemas/PaymentSelection'
+        customer:
+          $ref: '#/components/schemas/CustomerInfo'
+        channel:
+          type: string
+    PaymentSelection:
+      type: object
+      required: [method]
+      properties:
+        method:
+          type: string
+          enum: [mercado_pago, codi, spei, cash, complimentary]
+        reference:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    ReservationResponse:
+      type: object
+      required: [reservationId, status]
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled]
+        confirmationNumber:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    WaitlistRequest:
+      type: object
+      required: [eventId, tableId, partySize, customer]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        tableId:
+          type: string
+          format: uuid
+        partySize:
+          type: integer
+          minimum: 1
+        customer:
+          $ref: '#/components/schemas/CustomerInfo'
+        notes:
+          type: string
+    WaitlistResponse:
+      type: object
+      required: [waitlistId, position]
+      properties:
+        waitlistId:
+          type: string
+          format: uuid
+        position:
+          type: integer
+        estimatedWaitMinutes:
+          type: integer
+    MercadoPagoPreferenceRequest:
+      type: object
+      required: [reservationId, returnUrl]
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        returnUrl:
+          type: string
+          format: uri
+        notificationUrl:
+          type: string
+          format: uri
+        statementDescriptor:
+          type: string
+    MercadoPagoPreferenceResponse:
+      type: object
+      required: [preferenceId, initPoint]
+      properties:
+        preferenceId:
+          type: string
+        initPoint:
+          type: string
+          format: uri
+        sandboxInitPoint:
+          type: string
+          format: uri
+    MercadoPagoWebhookEvent:
+      type: object
+      required: [id, type, data]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+    CodiChargeRequest:
+      type: object
+      required: [reservationId, amount, currency]
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: float
+        currency:
+          type: string
+          default: MXN
+        concept:
+          type: string
+        expiresInSeconds:
+          type: integer
+    CodiChargeResponse:
+      type: object
+      required: [chargeId, qrCode, expiresAt]
+      properties:
+        chargeId:
+          type: string
+        qrCode:
+          type: string
+          description: Base64 encoded QR code image.
+        expiresAt:
+          type: string
+          format: date-time
+    CodiWebhookEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+    SpeiTransferRequest:
+      type: object
+      required: [reservationId, amount, clabe]
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: float
+        clabe:
+          type: string
+          description: 18-digit CLABE account number.
+        reference:
+          type: string
+    SpeiTransferResponse:
+      type: object
+      required: [transferId, reference, expiresAt]
+      properties:
+        transferId:
+          type: string
+        reference:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    SpeiWebhookEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+    ReferenceBundle:
+      type: object
+      required: [version, datasets]
+      properties:
+        version:
+          type: string
+        datasets:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              additionalProperties: true
+    ReconcileReferenceRequest:
+      type: object
+      properties:
+        force:
+          type: boolean
+          default: false
+    ReconcileReferenceResponse:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed]
+    AuditLogEntry:
+      type: object
+      required: [id, actorId, action, resource, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        actorId:
+          type: string
+          format: uuid
+        action:
+          type: string
+        resource:
+          type: object
+          required: [type, id]
+          properties:
+            type:
+              type: string
+            id:
+              type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+    AuditLogListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+        meta:
+          type: object
+          required: [count]
+          properties:
+            count:
+              type: integer
