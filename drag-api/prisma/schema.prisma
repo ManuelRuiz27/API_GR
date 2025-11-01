@@ -8,15 +8,166 @@ datasource db {
 }
 
 enum Role {
+  STAFF
+  HOST
+  CLIENT
+}
+
+enum LayoutStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SeatStatus {
+  AVAILABLE
+  HELD
+  RESERVED
+  BLOCKED
+}
+
+enum WaitlistScope {
+  VENUE
   USER
-  ADMIN
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
+  id           String     @id @default(uuid())
+  email        String     @unique
   passwordHash String
-  role         Role     @default(USER)
+  role         Role       @default(CLIENT)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  sessions     Session[]
+  layouts      Layout[]   @relation("LayoutCreator")
+  layoutVersions LayoutVersion[] @relation("LayoutVersionCreator")
+  auditLogs    AuditLog[] @relation("AuditActor")
+  waitlistEntries WaitlistEntry[]
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  tokenHash  String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Layout {
+  id          String           @id @default(uuid())
+  name        String
+  description String?
+  venueId     String
+  zoneId      String?
+  version     Int              @default(1)
+  json        Json
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  publishedAt DateTime?
+  createdBy   String?
+  creator     User?            @relation("LayoutCreator", fields: [createdBy], references: [id])
+  versions    LayoutVersion[]
+  events      Event[]
+  status      LayoutStatus     @default(DRAFT)
+}
+
+model LayoutVersion {
+  id        String   @id @default(uuid())
+  layout    Layout   @relation(fields: [layoutId], references: [id])
+  layoutId  String
+  version   Int
+  json      Json
+  createdAt DateTime @default(now())
+  createdBy String?
+  creator   User?    @relation("LayoutVersionCreator", fields: [createdBy], references: [id])
+}
+
+model MediaAsset {
+  id        String   @id @default(uuid())
+  name      String
+  kind      String
+  url       String
+  filePath  String
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  action       String
+  resourceType String
+  resourceId   String
+  actorId      String?
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id])
+  metadata     Json?
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+}
+
+model Event {
+  id             String          @id @default(uuid())
+  name           String
+  venueId        String
+  zoneId         String?
+  layout         Layout          @relation(fields: [layoutId], references: [id])
+  layoutId       String
+  startsAt       DateTime
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tables         Table[]
+  waitlistPolicy WaitlistPolicy?
+  waitlistEntries WaitlistEntry[]
+}
+
+model Table {
+  id              String   @id @default(uuid())
+  event           Event    @relation(fields: [eventId], references: [id])
+  eventId         String
+  layoutElementId String
+  zoneId          String?
+  capacity        Int
+  seats           Seat[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Seat {
+  id         String     @id @default(uuid())
+  table      Table      @relation(fields: [tableId], references: [id])
+  tableId    String
+  label      String
+  status     SeatStatus @default(AVAILABLE)
+  holdEndsAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  history    SeatStatusHistory[]
+}
+
+model SeatStatusHistory {
+  id        String     @id @default(uuid())
+  seat      Seat       @relation(fields: [seatId], references: [id])
+  seatId    String
+  status    SeatStatus
+  changedAt DateTime   @default(now())
+}
+
+model WaitlistPolicy {
+  id          String  @id @default(uuid())
+  event       Event   @relation(fields: [eventId], references: [id])
+  eventId     String  @unique
+  maxSize     Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WaitlistEntry {
+  id        String        @id @default(uuid())
+  event     Event         @relation(fields: [eventId], references: [id])
+  eventId   String
+  user      User?         @relation(fields: [userId], references: [id])
+  userId    String?
+  scope     WaitlistScope
+  createdAt DateTime      @default(now())
 }
