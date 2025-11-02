@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: drag-api
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/drag-api
+      JWT_SECRET: ci-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: drag-api
+        run: npm install
+
+      - name: Generate Prisma client
+        working-directory: drag-api
+        run: npx prisma generate
+
+      - name: Apply database migrations
+        working-directory: drag-api
+        run: npx prisma migrate deploy
+
+      - name: Run lint
+        working-directory: drag-api
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: drag-api
+        run: npm test -- --runInBand

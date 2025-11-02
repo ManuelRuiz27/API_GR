@@ -26,3 +26,18 @@ is running.
 
 To stop the services press `Ctrl+C` or run `docker compose down` in a separate terminal. The
 PostgreSQL data is persisted using the `db-data` volume defined in the compose file.
+
+### Testing & linting
+
+All quality gates run inside the `drag-api/` folder:
+
+```bash
+cd drag-api
+npm install
+npx prisma generate
+npm test           # unit + integration (PostgreSQL required)
+npm run lint       # eslint sin autofixes
+```
+
+You can rely on `docker compose up -d db` to provision the PostgreSQL instance before
+running the commands above.
