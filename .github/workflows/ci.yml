@@ -36,12 +36,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: drag-api/package-lock.json
 
       - name: Install dependencies
         working-directory: drag-api
-        run: npm ci
+        run: npm install
 
       - name: Generate Prisma client
         working-directory: drag-api
