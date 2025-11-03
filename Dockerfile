@@ -9,6 +9,7 @@ RUN npm install
 COPY tsconfig.json ./
 COPY prisma ./prisma
 COPY src ./src
+COPY start.sh ./start.sh
 
 RUN npx prisma generate
 RUN npm run build
@@ -21,7 +22,11 @@ ENV NODE_ENV=production
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/start.sh ./start.sh
+
+RUN chmod +x start.sh
 
 EXPOSE 4000
 
-CMD ["node", "dist/index.js"]
+CMD ["./start.sh"]
