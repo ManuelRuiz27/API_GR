@@ -1,13 +1,12 @@
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient, Layout } from '@prisma/client';
+import { Layout } from '@prisma/client';
+import prisma from './prisma';
 
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
-
 interface StructuredError {
   message: string;
   details?: unknown;

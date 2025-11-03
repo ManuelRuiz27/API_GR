@@ -1,31 +1,38 @@
 version: '3.9'
 
 services:
-  api:
-    build:
-      context: ./drag-api
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/drag-api?schema=public}
-      JWT_SECRET: ${JWT_SECRET:-local-development-secret}
-      PORT: ${PORT:-3000}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-
   db:
-    image: postgres:15-alpine
+    image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-drag-api}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-layouts}
+      POSTGRES_USER: ${POSTGRES_USER:-layouts_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-layouts_pass}
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-layouts_user}:${POSTGRES_PASSWORD:-layouts_pass}@db:5432/${POSTGRES_DB:-layouts}?schema=public
+      PORT: 4000
+    depends_on:
+      - db
+    ports:
+      - "4000:4000"
+
+  adminer:
+    image: adminer:4
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
 
 volumes:
   db-data:
