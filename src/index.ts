@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Layout } from '@prisma/client';
+import { Layout, Prisma } from '@prisma/client';
 import prisma from './prisma';
 
 dotenv.config();
@@ -90,6 +90,12 @@ const ensureJsonData = (data: unknown): Layout['data'] => {
 app.use(cors());
 app.use(express.json());
 app.use(requestLogger);
+
+app.get('/api/health', asyncHandler(async (_req, res) => {
+  await prisma.$queryRaw`SELECT 1`;
+  res.json({ status: 'ok' });
+}));
+
 app.use(authenticate);
 
 app.get('/api/layouts', asyncHandler(async (_req, res) => {
@@ -127,7 +133,7 @@ app.post('/api/layouts', asyncHandler(async (req, res) => {
   const layout = await prisma.layout.create({
     data: {
       name: name.trim(),
-      data: parsedData,
+      data: parsedData as Prisma.InputJsonValue,
     },
   });
 
@@ -169,8 +175,11 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 const port = Number(process.env.PORT ?? 3000);
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
+  });
+}
 
 export default app;
